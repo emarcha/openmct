@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Home</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Home</h1>
+
+    
+
+
+
+    
+
+
+    <h3> </h3>
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+    <section>
+        <article><h1>Building Applications With Open MCT</h1><h2>Scope and purpose of this document</h2><p>This document is intended to serve as a reference for developing an application 
+based on Open MCT. It will provide details of the API functions necessary to extend the 
+Open MCT platform meet common use cases such as integrating with a telemetry source. </p>
+<p>The best place to start is with the <a href="https://github.com/nasa/openmct-tutorial">Open MCT Tutorials</a>. 
+These will walk you through the process of getting up and running with Open MCT, 
+as well as addressing some common developer use cases.</p>
+<h2>Building From Source</h2><p>The latest version of Open MCT is available from <a href="https://github.com/nasa/openmct">our GitHub repository</a>. 
+If you have <code>git</code>, and <code>node</code> installed, you can build Open MCT with the commands </p>
+<pre class="prettyprint source"><code>git clone https://github.com/nasa/openmct.git
+cd openmct
+npm install</code></pre><p>These commands will fetch the Open MCT source from our GitHub repository, and build 
+a minified version that can be included in your application. The output of the 
+build process is placed in a <code>dist</code> folder under the openmct source directory, 
+which can be copied out to another location as needed. The contents of this 
+folder will include a minified javascript file named <code>openmct.js</code> as well as 
+assets such as html, css, and images necessary for the UI. </p>
+<h2>Starting an Open MCT application</h2><p>To start a minimally functional Open MCT application, it is necessary to include 
+the Open MCT distributable, enable some basic plugins, and bootstrap the application. 
+The tutorials walk through the process of getting Open MCT up and running from scratch,
+but provided below is a minimal HTML template that includes Open MCT, installs 
+some basic plugins, and bootstraps the application. It assumes that Open MCT is 
+installed under an <code>openmct</code> subdirectory, as described in <a href="#building-from-source">Building From Source</a>. </p>
+<p>This approach includes openmct using a simple script tag, resulting in a global 
+variable named <code>openmct</code>. This <code>openmct</code> object is used subsequently to make API 
+calls. </p>
+<p>Open MCT is packaged as a UMD (Universal Module Definition) module, so common 
+script loaders are also supported.</p>
+<pre class="prettyprint source lang-html"><code>&lt;!DOCTYPE html>
+&lt;html>
+&lt;head>
+    &lt;title>Open MCT&lt;/title>
+    &lt;script src=&quot;openmct.js&quot;>&lt;/script>
+&lt;/head>
+&lt;body>
+    &lt;script>
+        openmct.setAssetPath('openmct/dist');
+        openmct.install(openmct.plugins.LocalStorage());
+        openmct.install(openmct.plugins.MyItems());
+        openmct.install(openmct.plugins.UTCTimeSystem());
+        openmct.install(openmct.plugins.Espresso());
+        openmct.start();
+    &lt;/script>
+&lt;/body>
+&lt;/html></code></pre><p>The Open MCT library included above requires certain assets such as html templates, 
+images, and css. If you installed Open MCT from GitHub as described in the section 
+on <a href="#building-from-source">Building from Source</a> then these assets will have been 
+downloaded along with the Open MCT javascript library. You can specify the 
+location of these assets by calling <code>openmct.setAssetPath()</code>. Typically this will 
+be the same location as the <code>openmct.js</code> library is included from.</p>
+<p>There are some plugins bundled with the application that provide UI, persistence, 
+and other default configuration which are necessary to be able to do anything with 
+the application initially. Any of these plugins can, in principle, be replaced with a custom 
+plugin. The included plugins are documented in the <a href="#included-plugins">Included Plugins</a> 
+section.  </p>
+<h2>Plugins</h2><h3>Defining and Installing a New Plugin</h3><pre class="prettyprint source lang-javascript"><code>openmct.install(function install(openmctAPI) {
+    // Do things here
+    // ...
+});</code></pre><p>New plugins are installed in Open MCT by calling <code>openmct.install</code>, and providing 
+a plugin installation function. This function will be invoked on application 
+startup with one parameter - the openmct API object. A common approach used in 
+the Open MCT codebase is to define a plugin as a function that returns this 
+installation function. This allows configuration to be specified when the plugin is included.</p>
+<p>eg.</p>
+<pre class="prettyprint source lang-javascript"><code>openmct.install(openmct.plugins.Elasticsearch(&quot;http://localhost:8002/openmct&quot;));</code></pre><p>This approach can be seen in all of the <a href="https://github.com/nasa/openmct/blob/master/src/plugins/plugins.js">plugins provided with Open MCT</a>.</p>
+<h2>Domain Objects and Identifiers</h2><p><em>Domain Objects</em> are the basic entities that represent domain knowledge in Open MCT.
+The temperature sensor on a solar panel, an overlay plot comparing 
+the results of all temperature sensors, the command dictionary for a spacecraft,
+the individual commands in that dictionary, the &quot;My Items&quot; folder:
+All of these things are domain objects.</p>
+<p>A <em>Domain Object</em> is simply a javascript object with some standard attributes.<br>An example of a <em>Domain Object</em> is the &quot;My Items&quot; object which is a folder in 
+which a user can persist any objects that they create. The My Items object 
+looks like this: </p>
+<pre class="prettyprint source lang-javascript"><code>{
+    identifier: {
+        namespace: &quot;&quot;
+        key: &quot;mine&quot;
+    }
+    name:&quot;My Items&quot;,
+    type:&quot;folder&quot;,
+    location:&quot;ROOT&quot;,
+    composition: []
+}</code></pre><h3>Object Attributes</h3><p>The main attributes to note are the <code>identifier</code>, and <code>type</code> attributes.</p>
+<ul>
+<li><code>identifier</code>: A composite key that provides a universally unique identifier for 
+this object. The <code>namespace</code> and <code>key</code> are used to identify the object. The <code>key</code> 
+must be unique within the namespace. </li>
+<li><code>type</code>: All objects in Open MCT have a type. Types allow you to form an 
+ontology of knowledge and provide an abstraction for grouping, visualizing, and 
+interpreting data. Details on how to define a new object type are provided below. </li>
+</ul>
+<p>Open MCT uses a number of builtin types. Typically you are going to want to 
+define your own if extending Open MCT.</p>
+<h3>Domain Object Types</h3><p>Custom types may be registered via the <code>addType</code> function on the opencmt Type 
+registry.</p>
+<p>eg.</p>
+<pre class="prettyprint source lang-javascript"><code>openmct.types.addType('my-type', {
+    label: &quot;My Type&quot;,
+    description: &quot;This is a type that I added!&quot;,
+    creatable: true
+});</code></pre><p>The <code>addType</code> function accepts two arguments:</p>
+<ul>
+<li>A <code>string</code> key identifying the type. This key is used when specifying a type 
+for an object.</li>
+<li>An object type specification. An object type definition supports the following 
+attributes      <ul>
+<li><code>label</code>: a <code>string</code> naming this object type</li>
+<li><code>description</code>: a <code>string</code> specifying a longer-form description of this type</li>
+<li><code>initialize</code>: a <code>function</code> which initializes the model for new domain objects 
+of this type. This can be used for setting default values on an object when 
+it is instantiated.</li>
+<li><code>creatable</code>: A <code>boolean</code> indicating whether users should be allowed to create 
+this type (default: <code>false</code>). This will determine whether the type appears 
+in the <code>Create</code> menu.</li>
+<li><code>cssClass</code>: A <code>string</code> specifying a CSS class to apply to each representation 
+of this object. This is used for specifying an icon to appear next to each 
+object of this type.</li>
+</ul>
+</li>
+</ul>
+<p>The <a href="https://github.com/openmct/openmct-tutorial">Open MCT Tutorials</a> provide a 
+step-by-step examples of writing code for Open MCT that includes a <a href="https://github.com/nasa/openmct-tutorial#step-3---providing-objects">section on 
+defining a new object type</a>.</p>
+<h2>Root Objects</h2><p>In many cases, you'd like a certain object (or a certain hierarchy of objects) 
+to be accessible from the top level of the application (the tree on the left-hand 
+side of Open MCT.) For example, it is typical to expose a telemetry dictionary 
+as a hierarchy of telemetry-providing domain objects in this fashion.</p>
+<p>To do so, use the <code>addRoot</code> method of the object API.</p>
+<p>eg.</p>
+<pre class="prettyprint source lang-javascript"><code>openmct.objects.addRoot({
+        namespace: &quot;my-namespace&quot;,
+        key: &quot;my-key&quot;
+    });</code></pre><p>The <code>addRoot</code> function takes a single <a href="#domain-objects-and-identifiers">object identifier</a> 
+as an argument. </p>
+<p>Root objects are loaded just like any other objects, i.e. via an object
+provider.</p>
+<h2>Object Providers</h2><p>An Object Provider is used to build <em>Domain Objects</em>, typically retrieved from 
+some source such as a persistence store or telemetry dictionary. In order to 
+integrate telemetry from a new source an object provider will need to be created 
+that can build objects representing telemetry points exposed by the telemetry 
+source. The API call to define a new object provider is fairly straightforward. 
+Here's a very simple example:</p>
+<pre class="prettyprint source lang-javascript"><code>openmct.objects.addProvider('example.namespace', {
+    get: function (identifier) {
+        return Promise.resolve({
+            identifier: identifier,
+            name: 'Example Object',
+            type: 'example-object-type'
+        });
+    }
+});</code></pre><p>The <code>addProvider</code> function takes two arguments:</p>
+<ul>
+<li><code>namespace</code>: A <code>string</code> representing the namespace that this object provider 
+will provide objects for.</li>
+<li><code>provider</code>: An <code>object</code> with a single function, <code>get</code>. This function accepts an 
+<a href="#domain-objects-and-identifiers">Identifier</a> for the object to be provided. 
+It is expected that the <code>get</code> function will return a 
+<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise">Promise</a> 
+that resolves with the object being requested.</li>
+</ul>
+<p>In future, object providers will support other methods to enable other operations 
+with persistence stores, such as creating, updating, and deleting objects.</p>
+<h2>Composition Providers</h2><p>The <em>composition</em> of a domain object is the list of objects it contains, as shown 
+(for example) in the tree for browsing. Open MCT provides a
+<a href="#default-composition-provider">default solution</a> for composition, but there
+may be cases where you want to provide the composition of a certain object
+(or type of object) dynamically.</p>
+<h3>Adding Composition Providers</h3><p>You may want to populate a hierarchy under a custom root-level object based on 
+the contents of a telemetry dictionary. To do this, you can add a new 
+Composition Provider:</p>
+<pre class="prettyprint source lang-javascript"><code>openmct.composition.addProvider({
+    appliesTo: function (domainObject) {
+        return domainObject.type === 'my-type';
+    },
+    load: function (domainObject) {
+        return Promise.resolve(myDomainObjects);
+    }
+});</code></pre><p>The <code>addProvider</code> function accepts a Composition Provider object as its sole 
+argument. A Composition Provider is a javascript object exposing two functions:</p>
+<ul>
+<li><code>appliesTo</code>: A <code>function</code> that accepts a <code>domainObject</code> argument, and returns 
+a <code>boolean</code> value indicating whether this composition provider applies to the 
+given object.</li>
+<li><code>load</code>: A <code>function</code> that accepts a <code>domainObject</code> as an argument, and returns
+a <code>Promise</code> that resolves with an array of <a href="#domain-objects-and-identifiers">Identifier</a>.
+These identifiers will be used to fetch Domain Objects from an <a href="#object-provider">Object Provider</a></li>
+</ul>
+<h3>Default Composition Provider</h3><p>The default composition provider applies to any domain object with a <code>composition</code> 
+property. The value of <code>composition</code> should be an array of identifiers, e.g.:</p>
+<pre class="prettyprint source lang-javascript"><code>var domainObject = {
+    name: &quot;My Object&quot;,
+    type: 'folder',
+    composition: [
+        {
+            id: '412229c3-922c-444b-8624-736d85516247',
+            namespace: 'foo'
+        },
+        {
+            key: 'd6e0ce02-5b85-4e55-8006-a8a505b64c75',
+            namespace: 'foo'
+        }
+    ]
+};</code></pre><h2>Telemetry Providers</h2><p>When connecting to a new telemetry source, you will need to register a new
+<em>Telemetry Provider</em>. A <em>Telemetry Provider</em> retrieves telemetry data from some telemetry 
+source, and exposes them in a way that can be used by Open MCT. A telemetry 
+provider typically can support a one off <strong>request</strong> for a batch of telemetry data, 
+or it can provide the ability to <strong>subscribe</strong> to receive new telemetry data when 
+it becomes available, or both.</p>
+<pre class="prettyprint source lang-javascript"><code>openmct.telemetry.addProvider({
+    supportsRequest: function (domainObject) {
+        //...
+    },
+    supportsSubscribe: function (domainObject) {
+        //...
+    },
+    request: function (domainObject, options) {    
+        //...
+    },
+    subscribe: function (domainObject, callback, options) {
+        //...
+    }
+})</code></pre><p>A telemetry provider is an object with the following functions defined:</p>
+<ul>
+<li><code>supportsRequest</code>: An <strong>optional</strong> <code>function</code> that accepts a 
+<a href="#domain-objects-and-identifiers">Domain Object</a> and returns a <code>boolean</code> value
+indicating whether or not this provider supports telemetry requests for the 
+given object. If this returns <code>true</code> then a <code>request</code> function must be defined. </li>
+<li><code>supportsSubscribe</code>: An <strong>optional</strong> <code>function</code> that accepts a 
+<a href="#domain-objects-and-identifiers">Domain Object</a> and returns a <code>boolean</code> value 
+indicating whether or not this provider supports telemetry subscriptions. If this 
+returns <code>true</code> then a <code>subscribe</code> function must also be defined. As with <code>request</code>, 
+the return value will typically be conditional, and based on attributes of 
+<code>domainObject</code> such as its identifier.</li>
+<li><code>request</code>: A <code>function</code> that returns a <code>Promise</code> that will resolve with an <code>Array</code> 
+of telemetry in a single query. This function accepts as arguments a 
+<a href="#domain-objects-and-identifiers">Domain Object</a> and an object containing some 
+<a href="#telemetry-requests">request options</a>. </li>
+<li><code>subscribe</code>:  A <code>function</code> that accepts a <a href="#domain-objects-and-identifiers">Domain Object</a>,
+a callback <code>function</code>, and a <a href="#telemetry-requests">telemetry request</a>. The 
+callback is invoked whenever telemetry is available, and </li>
+</ul>
+<p>The implementations for <code>request</code> and <code>subscribe</code> can vary depending on the
+nature of the endpoint which will provide telemetry. In the example above,
+it is assumed that <code>myAdapter</code> contains the implementation details
+(such as HTTP requests, WebSocket connections, etc.) associated with some telemetry
+source.</p>
+<p>For a step-by-step guide to building a telemetry adapter, please see the 
+<a href="https://github.com/larkin/openmct-tutorial">Open MCT Tutorials</a>.</p>
+<h3>Telemetry Requests</h3><p>Telemetry requests support time bounded queries. A call to a <em>Telemetry Provider</em>'s 
+<code>request</code> function will include an <code>options</code> argument. These are simply javascript
+objects with attributes for the request parameters. An example of a telemetry 
+request object with a start and end time is included below:</p>
+<pre class="prettyprint source lang-javascript"><code>{
+    start: 1487981997240,
+    end: 1487982897240
+}</code></pre><h3>Telemetry Data</h3><p>Telemetry data is provided to Open MCT by <em><a href="#telemetry-providers">Telemetry Providers</a></em>
+in the form of javascript objects. A collection of telemetry values (for example, 
+retrieved in response to a <code>request</code>) is represented by an <code>Array</code> of javascript 
+objects. These telemetry javascript objects are simply key value pairs.</p>
+<p>Typically a telemetry datum will have some timestamp associated with it. This 
+time stamp should have a key that corresponds to some time system supported by 
+Open MCT. If the <code>UTCTimeSystem</code> plugin is installed, then the key <code>utc</code> can be used.</p>
+<p>An example of a telemetry provider request function that returns a collection of
+mock telemtry data is below:</p>
+<pre class="prettyprint source lang-javascript"><code>openmct.telemetry.addProvider({
+    supportsRequest: function (domainObject) {
+        return true
+    },
+    request: function (domainObject, options) {    
+        return Promise.resolve([
+            {
+                'utc': Date.now() - 2000,
+                'value': 1,
+            },
+            {
+                'utc': Date.now() - 1000,
+                'value': 2,
+            },
+            {
+                'utc': Date.now(),
+                'value': 3,
+            }
+        ]);
+    }
+})</code></pre><h2>Included Plugins</h2><p>Open MCT is packaged along with a few general-purpose plugins:</p>
+<ul>
+<li><code>openmct.plugins.CouchDB</code> is an adapter for using CouchDB for persistence
+of user-created objects. This is a constructor that takes the URL for the
+CouchDB database as a parameter, e.g.<pre class="prettyprint source lang-javascript"><code>openmct.install(openmct.plugins.CouchDB('http://localhost:5984/openmct'))</code></pre></li>
+<li><code>openmct.plugins.Elasticsearch</code> is an adapter for using Elasticsearch for
+persistence of user-created objects. This is a
+constructor that takes the URL for the Elasticsearch instance as a
+parameter. eg.<pre class="prettyprint source lang-javascript"><code>openmct.install(openmct.plugins.CouchDB('http://localhost:9200'))</code></pre></li>
+<li><code>openmct.plugins.Espresso</code> and <code>openmct.plugins.Snow</code> are two different
+themes (dark and light) available for Open MCT. Note that at least one
+of these themes must be installed for Open MCT to appear correctly.</li>
+<li><code>openmct.plugins.LocalStorage</code> provides persistence of user-created
+objects in browser-local storage. This is particularly useful in
+development environments.</li>
+<li><code>openmct.plugins.MyItems</code> adds a top-level folder named &quot;My Items&quot;
+when the application is first started, providing a place for a
+user to store created items.</li>
+<li><code>openmct.plugins.UTCTimeSystem</code> provides a default time system for Open MCT.</li>
+</ul>
+<p>Generally, you will want to either install these plugins, or install
+different plugins that provide persistence and an initial folder
+hierarchy.</p>
+<p>eg.</p>
+<pre class="prettyprint source lang-javascript"><code>openmct.install(openmct.plugins.LocalStorage());
+openmct.install(openmct.plugins.MyItems());</code></pre></article>
+    </section>
+
+
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="module-openmct.Dialog.html">Dialog</a></li><li><a href="module-openmct.MCT.html">MCT</a></li><li><a href="module-openmct.Type.html">Type</a></li></ul><h3>Events</h3><ul><li><a href="module-openmct.MCT.html#~event:start">start</a></li><li><a href="module-openmct.TimeConductor.html#~event:bounds">bounds</a></li><li><a href="module-openmct.TimeConductor.html#~event:follow">follow</a></li><li><a href="module-openmct.TimeConductor.html#~event:timeOfInterest">timeOfInterest</a></li><li><a href="module-openmct.TimeConductor.html#~event:timeSystem">timeSystem</a></li></ul><h3>Interfaces</h3><ul><li><a href="module-openmct.CompositionAPI.html">CompositionAPI</a></li><li><a href="module-openmct.CompositionCollection.html">CompositionCollection</a></li><li><a href="module-openmct.CompositionProvider.html">CompositionProvider</a></li><li><a href="module-openmct.GestureAPI.html">GestureAPI</a></li><li><a href="module-openmct.ObjectAPI.html">ObjectAPI</a></li><li><a href="module-openmct.ObjectProvider.html">ObjectProvider</a></li><li><a href="module-openmct.TelemetryAPI.html">TelemetryAPI</a></li><li><a href="module-openmct.TelemetryAPI-LimitEvaluator.html">LimitEvaluator</a></li><li><a href="module-openmct.TelemetryAPI-TelemetryFormatter.html">TelemetryFormatter</a></li><li><a href="module-openmct.TelemetryAPI-TelemetryProvider.html">TelemetryProvider</a></li><li><a href="module-openmct.TimeConductor.html">TimeConductor</a></li><li><a href="module-openmct.TypeRegistry.html">TypeRegistry</a></li><li><a href="module-openmct.View.html">View</a></li><li><a href="module-openmct.ViewProvider.html">ViewProvider</a></li><li><a href="module-openmct.ViewRegistry.html">ViewRegistry</a></li><li><a href="MutableObject.html">MutableObject</a></li></ul><h3><a href="global.html">Global</a></h3>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Wed Apr 05 2017 17:35:42 GMT+0000 (UTC)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
